@@ -456,11 +456,8 @@ var MATCH_REF={
 function getRefereeData(home,away){
   var key=home+'|'+away;
   var name=MATCH_REF[key]||'';
-  if(!name){
-    var pool=['Szymon Marciniak','Cesar Ramos','Francois Letexier','Ma Ning','Michael Oliver','Danny Makkelie','Ismail Elfath','Jalal Jayed'];
-    name=pool[Math.abs((home+away).length+home.charCodeAt(0))%pool.length];
-  }
-  return REFEREES[name]||REFEREES['default'];
+  if(!name)return null; // 未确认的比赛返回null，不应用裁判影响
+  return REFEREES[name]||null;
 }
 
 const GROUPS={
@@ -754,13 +751,14 @@ function analyzeMatch(home,away){
   // 新闻舆情修正（来自Reddit抓取）
   var hNewsMod=1+(ht.news||0)*0.01,aNewsMod=1+(at.news||0)*0.01;
   hBase*=hNewsMod;aBase*=aNewsMod;
-  // 裁判影响：基于真实裁判数据
+  // 裁判影响：仅使用已确认的真实裁判数据
   var refData=getRefereeData(home,away);
-  var refName=MATCH_REF[home+'|'+away]||'待定';
-  var refNote='👨‍⚖️ '+refData.style+' ('+refData.nat+') '+refData.note;
-  // 严格裁判→出牌多→技术流受益；裁判倾向影响进球预期
-  if(refData.cards>=4.5){hBase*=1.04;aBase*=0.96} // 高黄牌裁判：身体对抗队受限制
-  else if(refData.cards<=2.5){hBase*=0.96;aBase*=1.04} // 宽松裁判：身体流受益
+  var refNote='';
+  if(refData){
+    refNote='👨‍⚖️ '+refData.style+' ('+refData.nat+') · '+refData.note;
+    if(refData.cards>=4.5){hBase*=1.03;aBase*=0.97}
+    else if(refData.cards<=2.5){hBase*=0.97;aBase*=1.03}
+  }
   // 通勤疲劳
   var hTravMod=1-(ht.trav||0)*0.00003,aTravMod=1-(at.trav||0)*0.00003;
   hBase*=hTravMod;aBase*=aTravMod;
