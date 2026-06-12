@@ -351,6 +351,10 @@ const VENUES={
   '🇨🇦 多伦多·BMO':{alt:76,pitch:'天然草',roof:'露天',city:'多伦多',lat:43.6,lon:-79.4},
   '🇨🇦 温哥华·BC Place':{alt:2,pitch:'人工草',roof:'可关闭',city:'温哥华',lat:49.3,lon:-123.1},
 };
+// 城市娱乐指数（夜生活/赌场/派对→影响球员专注度）1-10
+var CITY_VICE={墨西哥城:7,瓜达拉哈拉:5,蒙特雷:5,纽约:8,洛杉矶:9,达拉斯:6,亚特兰大:7,休斯顿:6,费城:6,波士顿:7,旧金山:8,迈阿密:10,西雅图:5,堪萨斯城:4,多伦多:7,温哥华:6};
+// 球员不良嗜好关键词（Reddit抓取匹配）
+var VICE_WORDS=['party','nightclub','casino','drunk','gambling','scandal','arrest','strip club','alcohol','hangover','late night','fight','brawl','controversy','suspended','disciplinary','fine','banned','investigation','hotel incident'];
 
 // 战术风格
 const TACTICS={
@@ -759,6 +763,16 @@ function analyzeMatch(home,away){
     if(refData.cards>=4.5){hBase*=1.03;aBase*=0.97}
     else if(refData.cards<=2.5){hBase*=0.97;aBase*=1.03}
   }
+  // 城市娱乐干扰
+  var venueVice=venueData?CITY_VICE[venueData.city]||5:5;
+  var viceNote='';
+  if(venueVice>=9)viceNote='⚠️ 比赛地'+venueData.city+'娱乐指数极高('+venueVice+'/10)·夜生活或影响状态';
+  else if(venueVice>=8)viceNote='比赛地'+venueData.city+'娱乐指数高('+venueVice+'/10)·球员需自律';
+  var hViceMod=1-(venueVice>8?0.03:venueVice>6?0.01:0),aViceMod=1-(venueVice>8?0.03:venueVice>6?0.01:0);
+  var hDiscMod=(ht.discipline||5)<5?0.97:1,aDiscMod=(at.discipline||5)<5?0.97:1; // 纪律差+高娱乐=加倍
+  if(venueVice>=8&&(ht.discipline||5)<=4)hViceMod=0.93;
+  if(venueVice>=8&&(at.discipline||5)<=4)aViceMod=0.93;
+  hBase*=hViceMod*hDiscMod;aBase*=aViceMod*aDiscMod;
   // 通勤疲劳
   var hTravMod=1-(ht.trav||0)*0.00003,aTravMod=1-(at.trav||0)*0.00003;
   hBase*=hTravMod;aBase*=aTravMod;
@@ -788,7 +802,7 @@ function analyzeMatch(home,away){
     hForm:Math.round(hForm),aForm:Math.round(aForm),
     // 其他
     pH2H,nH2H,mystics,hLambda,aLambda,hVenue,aVenue,
-    rivalryNote,transNote,wNote:weatherNote,tacticsNote:tactics.note,refNote:refNote,
+    rivalryNote,transNote,wNote:weatherNote,tacticsNote:tactics.note,refNote:refNote,viceNote:viceNote,
     hBigWin:hTraits.bigWin,aResilience:aTraits.resilience,blowoutBoost:Math.round((blowoutBoost-1)*100),
     hxG:ht.xG,hxGA:ht.xGA,axG:at.xG,axGA:at.xGA,
   };
@@ -981,6 +995,7 @@ function renderAnalysis(a,home,away){
   if(a.blowoutBoost>5)html+=`<div style="font-size:8px;color:#fbbf24;margin-top:1px">💥 预期进球数+${a.blowoutBoost}%（仇恨/屠杀加成）</div>`;
   if(a.wNote)html+=`<div style="font-size:8px;color:#60a5fa;margin-top:2px">${a.wNote}</div>`;
   if(a.refNote)html+=`<div style="font-size:8px;color:#818cf8;margin-top:1px">👨‍⚖️ 裁判：${a.refNote}</div>`;
+  if(a.viceNote)html+=`<div style="font-size:8px;color:#f59e0b;margin-top:1px">🎰 ${a.viceNote}</div>`;
   if(a.tacticsNote)html+=`<div style="font-size:8px;color:#fbbf24;margin-top:1px">⚔️ ${a.tacticsNote}</div>`;
   if(a.nH2H)html+=`<div style="font-size:8px;color:#64748b;margin-top:2px">📝 ${a.nH2H}</div>`;
   // 实时舆情
